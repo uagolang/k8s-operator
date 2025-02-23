@@ -24,24 +24,27 @@ spec:
     - jsonPath: .spec.resource.memory
       name: Memory
       type: string
+    - jsonPath: .status.status
+      name: Status
+      type: string
+    - jsonPath: .status.error
+      name: Error
+      type: string
     - jsonPath: .spec.volume.enabled
       name: Has volume
       type: boolean
-    - jsonPath: .spec.volume.enabled
+    - jsonPath: .spec.volume.storage
       name: Volume size
-      type: boolean
+      type: string
     - jsonPath: .spec.replicas
       name: Replicas
       type: integer
     - jsonPath: .status.ready_replicas
-      name: Ready Replicas
+      name: Ready replicas
       type: integer
     - jsonPath: .status.last_reconcile_at
       name: Last reconcile
       type: date
-    - jsonPath: .status.status
-      name: Status
-      type: string
     name: v1alpha1
     schema:
       openAPIV3Schema:
@@ -129,6 +132,9 @@ spec:
           status:
             description: ValkeyStatus defines the observed state of Valkey
             properties:
+              error:
+                description: Error will be filled if some occurs
+                type: string
               last_reconcile_at:
                 description: |-
                   LastReconcileAt contains timestamp of the last reconcile

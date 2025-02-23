@@ -6,13 +6,14 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 
 	"github.com/uagolang/k8s-operator/api/v1alpha1"
-	"github.com/uagolang/k8s-operator/cmd/cli/utils"
 	"github.com/uagolang/k8s-operator/internal/lib/validator"
-	"github.com/uagolang/k8s-operator/internal/services/k8s"
+	"github.com/uagolang/k8s-operator/internal/utils"
 )
 
 type CreateRequest struct {
@@ -50,16 +51,17 @@ func (s *valkeyService) Create(ctx context.Context, i *CreateRequest) (*v1alpha1
 }
 
 func (s *valkeyService) createSecret(ctx context.Context, i *CreateRequest) (*corev1.Secret, error) {
-	res, err := s.k8sClient.CoreV1().Secrets(i.Namespace).Create(ctx, &corev1.Secret{
+	res := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      i.CrdName,
 			Namespace: i.Namespace,
 		},
 		StringData: map[string]string{
-			k8s.SecretKeyPassword: base64.StdEncoding.EncodeToString([]byte(i.Password)),
+			secretKeyPassword: base64.StdEncoding.EncodeToString([]byte(i.Password)),
 		},
-	}, metav1.CreateOptions{})
-	if err != nil {
+	}
+	err := s.k8sClient.Create(ctx, res)
+	if err != nil && !k8serrors.IsAlreadyExists(err) {
 		return nil, err
 	}
 
@@ -69,6 +71,9 @@ func (s *valkeyService) createSecret(ctx context.Context, i *CreateRequest) (*co
 func (s *valkeyService) createDeployment(ctx context.Context, i *CreateRequest) (*appsv1.Deployment, error) {
 	var volumeMounts []corev1.VolumeMount
 	var volumes []corev1.Volume
+
+	pvcName := "valkey-pvc"
+
 	if i.Volume.Enabled {
 		volumeMounts = []corev1.VolumeMount{{
 			Name:      "data",
@@ -78,13 +83,39 @@ func (s *valkeyService) createDeployment(ctx context.Context, i *CreateRequest) 
 			Name: "data",
 			VolumeSource: corev1.VolumeSource{
 				PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
-					ClaimName: "valkey-pvc",
+					ClaimName: pvcName,
 				},
 			},
 		}}
 	}
 
-	deployment := &appsv1.Deployment{
+	pvc := &corev1.PersistentVolumeClaim{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      pvcName,
+			Namespace: i.Namespace,
+		},
+		Spec: corev1.PersistentVolumeClaimSpec{
+			AccessModes: []corev1.PersistentVolumeAccessMode{
+				corev1.ReadWriteOnce,
+			},
+			Resources: corev1.VolumeResourceRequirements{
+				Requests: corev1.ResourceList{
+					corev1.ResourceStorage: resource.MustParse(i.Resource.Storage),
+				},
+			},
+		},
+	}
+	err := s.k8sClient.Create(ctx, pvc)
+	if err != nil && !k8serrors.IsAlreadyExists(err) {
+		return nil, err
+	}
+
+	resourceList := corev1.ResourceList{
+		corev1.ResourceCPU:    resource.MustParse(i.Resource.CPU),
+		corev1.ResourceMemory: resource.MustParse(i.Resource.Memory),
+	}
+
+	res := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      i.CrdName,
 			Namespace: i.Namespace,
@@ -99,36 +130,42 @@ func (s *valkeyService) createDeployment(ctx context.Context, i *CreateRequest) 
 					Labels: map[string]string{"app": i.CrdName},
 				},
 				Spec: corev1.PodSpec{
-					Containers: []corev1.Container{{
-						Name:  "valkey",
-						Image: i.Image,
-						Env: []corev1.EnvVar{
-							{
-								Name:  "VALKEY_USER",
-								Value: i.User,
-							},
-							{
-								Name: "VALKEY_PASSWORD",
-								ValueFrom: &corev1.EnvVarSource{
-									SecretKeyRef: &corev1.SecretKeySelector{
-										LocalObjectReference: corev1.LocalObjectReference{
-											Name: i.CrdName,
+					Containers: []corev1.Container{
+						{
+							Name:  "valkey",
+							Image: i.Image,
+							Env: []corev1.EnvVar{
+								{
+									Name:  "VALKEY_USER",
+									Value: i.User,
+								},
+								{
+									Name: "VALKEY_PASSWORD",
+									ValueFrom: &corev1.EnvVarSource{
+										SecretKeyRef: &corev1.SecretKeySelector{
+											LocalObjectReference: corev1.LocalObjectReference{
+												Name: i.CrdName,
+											},
+											Key: "password",
 										},
-										Key: "password",
 									},
 								},
 							},
+							Ports:        []corev1.ContainerPort{{ContainerPort: 6379}},
+							VolumeMounts: volumeMounts,
+							Resources: corev1.ResourceRequirements{
+								Requests: resourceList,
+								Limits:   resourceList,
+							},
 						},
-						Ports:        []corev1.ContainerPort{{ContainerPort: 6379}},
-						VolumeMounts: volumeMounts,
-					}},
+					},
 					Volumes: volumes,
 				},
 			},
 		},
 	}
-	res, err := s.k8sClient.AppsV1().Deployments(i.Namespace).Create(ctx, deployment, metav1.CreateOptions{})
-	if err != nil {
+	err = s.k8sClient.Create(ctx, res)
+	if err != nil && !k8serrors.IsAlreadyExists(err) {
 		return nil, err
 	}
 
@@ -136,7 +173,7 @@ func (s *valkeyService) createDeployment(ctx context.Context, i *CreateRequest) 
 }
 
 func (s *valkeyService) createService(ctx context.Context, i *CreateRequest) (*corev1.Service, error) {
-	service := &corev1.Service{
+	res := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      i.CrdName,
 			Namespace: i.Namespace,
@@ -152,8 +189,8 @@ func (s *valkeyService) createService(ctx context.Context, i *CreateRequest) (*c
 			ClusterIP: "None",
 		},
 	}
-	res, err := s.k8sClient.CoreV1().Services(i.Namespace).Create(ctx, service, metav1.CreateOptions{})
-	if err != nil {
+	err := s.k8sClient.Create(ctx, res)
+	if err != nil && !k8serrors.IsAlreadyExists(err) {
 		return nil, err
 	}
 

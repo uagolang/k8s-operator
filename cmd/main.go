@@ -36,6 +36,8 @@ import (
 
 	alpha1api "github.com/uagolang/k8s-operator/api/v1alpha1"
 	"github.com/uagolang/k8s-operator/internal/controller"
+	"github.com/uagolang/k8s-operator/internal/controller/flows/valkey"
+	"github.com/uagolang/k8s-operator/internal/services/valkey"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -122,9 +124,18 @@ func main() {
 		os.Exit(1)
 	}
 
+	k8sClient := mgr.GetClient()
+	flow := valkeyflow.NewFlow(
+		valkeyflow.WithK8sClient(k8sClient),
+		valkeyflow.WithValkeySvc(valkey.NewValkeyService(
+			valkey.WithK8sClient(k8sClient),
+		)),
+	)
+
 	if err = (&controller.ValkeyReconciler{
-		Client: mgr.GetClient(),
+		Client: k8sClient,
 		Scheme: mgr.GetScheme(),
+		Flow:   flow,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Valkey")
 		os.Exit(1)

@@ -84,6 +84,8 @@ type ValkeyStatus struct {
 
 	// Status could be 'running', 'failed', 'stopped'
 	Status string `json:"status,omitempty"`
+	// Error will be filled if some occurs
+	Error string `json:"error,omitempty"`
 	// ReadyReplicas is a number of working replicas
 	ReadyReplicas int32 `json:"ready_replicas"`
 	// LastReconcileAt contains timestamp of the last reconcile
@@ -91,17 +93,32 @@ type ValkeyStatus struct {
 	LastReconcileAt *metav1.Time `json:"last_reconcile_at,omitempty"`
 }
 
+func (s *ValkeyStatus) IsChanged(new *ValkeyStatus) bool {
+	if s.Error != new.Error {
+		return true
+	}
+	if s.ReadyReplicas != new.ReadyReplicas {
+		return true
+	}
+	if s.Status != new.Status {
+		return true
+	}
+
+	return false
+}
+
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
 //+kubebuilder:printcolumn:name="Image",type="string",JSONPath=".spec.image"
 //+kubebuilder:printcolumn:name="CPU",type="string",JSONPath=".spec.resource.cpu"
 //+kubebuilder:printcolumn:name="Memory",type="string",JSONPath=".spec.resource.memory"
-//+kubebuilder:printcolumn:name="Has volume",type="boolean",JSONPath=".spec.volume.enabled"
-//+kubebuilder:printcolumn:name="Volume size",type="boolean",JSONPath=".spec.volume.enabled"
-//+kubebuilder:printcolumn:name="Replicas",type="integer",JSONPath=".spec.replicas"
-//+kubebuilder:printcolumn:name="Ready Replicas",type="integer",JSONPath=".status.ready_replicas"
-//+kubebuilder:printcolumn:name="Last reconcile",type="date",JSONPath=".status.last_reconcile_at"
 //+kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.status"
+//+kubebuilder:printcolumn:name="Error",type="string",JSONPath=".status.error"
+//+kubebuilder:printcolumn:name="Has volume",type="boolean",JSONPath=".spec.volume.enabled"
+//+kubebuilder:printcolumn:name="Volume size",type="string",JSONPath=".spec.volume.storage"
+//+kubebuilder:printcolumn:name="Replicas",type="integer",JSONPath=".spec.replicas"
+//+kubebuilder:printcolumn:name="Ready replicas",type="integer",JSONPath=".status.ready_replicas"
+//+kubebuilder:printcolumn:name="Last reconcile",type="date",JSONPath=".status.last_reconcile_at"
 
 // Valkey is the Schema for the valkeys API
 type Valkey struct {
