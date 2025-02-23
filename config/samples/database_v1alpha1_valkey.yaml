@@ -1,0 +1,18 @@
+apiVersion: database.kuberly.io/v1alpha1
+kind: Valkey
+metadata:
+  labels:
+    app.kubernetes.io/name: k8s-operator
+    app.kubernetes.io/managed-by: kustomize
+  name: app-db
+spec:
+  image: "valkey/valkey"
+  replicas: 1
+  user: root
+  password: root
+  volume:
+    enabled: "true"
+  resources:
+    cpu: 200m
+    memory: 256Mi
+    storage: 10Gi
