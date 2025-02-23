@@ -1,4 +1,4 @@
-package valkeyflow
+package valkey
 
 import (
 	"context"
@@ -96,7 +96,7 @@ func (r *FlowImpl) Run(ctx context.Context, input any) (any, []string, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	if !ready {
+	if !ready || readyReplicas == 0 {
 		res.Status = StatusStopped
 		return res, []string{}, nil
 	}

@@ -1,4 +1,4 @@
-package valkeyflow
+package valkey
 
 const (
 	Finalizer = "valkey/kuberly.io"

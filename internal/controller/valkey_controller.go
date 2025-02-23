@@ -69,7 +69,7 @@ func (r *ValkeyReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	}
 	if err != nil {
 		status = &databasev1alpha1.ValkeyStatus{
-			Status:          valkeyflow.StatusFailed,
+			Status:          valkey.StatusFailed,
 			LastReconcileAt: utils.Pointer(metav1.Now()),
 			Error:           err.Error(),
 		}

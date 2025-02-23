@@ -37,7 +37,7 @@ import (
 	alpha1api "github.com/uagolang/k8s-operator/api/v1alpha1"
 	"github.com/uagolang/k8s-operator/internal/controller"
 	"github.com/uagolang/k8s-operator/internal/controller/flows/valkey"
-	"github.com/uagolang/k8s-operator/internal/services/valkey"
+	valkeysvc "github.com/uagolang/k8s-operator/internal/services/valkey"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -125,11 +125,9 @@ func main() {
 	}
 
 	k8sClient := mgr.GetClient()
-	flow := valkeyflow.NewFlow(
-		valkeyflow.WithK8sClient(k8sClient),
-		valkeyflow.WithValkeySvc(valkey.NewValkeyService(
-			valkey.WithK8sClient(k8sClient),
-		)),
+	flow := valkey.NewFlow(
+		valkey.WithK8sClient(k8sClient),
+		valkey.WithValkeySvc(valkeysvc.NewValkeyService(valkeysvc.WithK8sClient(k8sClient))),
 	)
 
 	if err = (&controller.ValkeyReconciler{
