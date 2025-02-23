@@ -1,6 +1,6 @@
 # Resource Operator for Kubernetes
 
-Examples for the articles cycle about managing k8s resources.
+Examples for the [articles cycle](https://t.me/uagolang/9) about managing k8s resources.
 It should work on local environment with `minikube` as a local k8s cluster.
 
 ## Get started
