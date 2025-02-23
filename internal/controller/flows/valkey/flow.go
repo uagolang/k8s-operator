@@ -9,12 +9,12 @@ import (
 
 	"github.com/uagolang/k8s-operator/api/v1alpha1"
 	"github.com/uagolang/k8s-operator/internal/controller/flows"
-	"github.com/uagolang/k8s-operator/internal/services/valkey"
+	valkeysvc "github.com/uagolang/k8s-operator/internal/services/valkey"
 )
 
 type FlowImpl struct {
 	k8sClient client.Client
-	valkeySvc valkey.Service
+	valkeySvc valkeysvc.Service
 }
 
 type ImplOption func(r *FlowImpl)
@@ -34,7 +34,7 @@ func WithK8sClient(v client.Client) ImplOption {
 	}
 }
 
-func WithValkeySvc(v valkey.Service) ImplOption {
+func WithValkeySvc(v valkeysvc.Service) ImplOption {
 	return func(r *FlowImpl) {
 		r.valkeySvc = v
 	}
@@ -59,7 +59,7 @@ func (r *FlowImpl) Run(ctx context.Context, input any) (any, []string, error) {
 		var err error
 		logger.Info("finalizer was added to valkey")
 
-		_, err = r.valkeySvc.Create(ctx, &valkey.CreateRequest{
+		_, err = r.valkeySvc.Create(ctx, &valkeysvc.CreateRequest{
 			CrdName:   item.Name,
 			Namespace: item.Namespace,
 			Image:     item.Spec.Image,
@@ -78,7 +78,7 @@ func (r *FlowImpl) Run(ctx context.Context, input any) (any, []string, error) {
 		return res, []string{Finalizer}, nil
 	}
 
-	err := r.valkeySvc.Update(ctx, &valkey.UpdateRequest{
+	err := r.valkeySvc.Update(ctx, &valkeysvc.UpdateRequest{
 		CrdName:   item.Name,
 		Namespace: item.Namespace,
 		Image:     &item.Spec.Image,
