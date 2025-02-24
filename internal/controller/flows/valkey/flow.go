@@ -46,13 +46,25 @@ func (r *FlowImpl) Run(ctx context.Context, input any) (any, []string, error) {
 		return nil, nil, flows.ErrInvalidInputType
 	}
 
-	logger := log.FromContext(ctx).WithValues("flow", "valkey", "crd_name", item.Name)
+	logger := log.FromContext(ctx).WithValues("flow", "valkey", "crd_name", item.Name, "finalizers", len(item.Finalizers))
 	log.IntoContext(ctx, logger)
 
 	res := new(v1alpha1.ValkeyStatus)
 
 	if !item.DeletionTimestamp.IsZero() { // should be deleted
-		return r.delete(ctx, &item)
+		if len(item.Finalizers) > 0 {
+			err := r.valkeySvc.Delete(ctx, types.NamespacedName{
+				Name:      item.Name,
+				Namespace: item.Namespace,
+			})
+			if err != nil {
+				return nil, nil, err
+			}
+		}
+
+		logger.Info("valkey resources were successfully deleted")
+
+		return res, []string{}, nil
 	}
 
 	if len(item.Finalizers) == 0 { // save finalizers
@@ -105,22 +117,4 @@ func (r *FlowImpl) Run(ctx context.Context, input any) (any, []string, error) {
 	res.Status = StatusRunning
 
 	return res, item.Finalizers, nil
-}
-
-func (r *FlowImpl) delete(ctx context.Context, item *v1alpha1.Valkey) (status *v1alpha1.ValkeyStatus, finalizers []string, err error) {
-	logger := log.FromContext(ctx)
-
-	if len(item.Finalizers) > 0 {
-		err = r.valkeySvc.Delete(ctx, types.NamespacedName{
-			Name:      item.Name,
-			Namespace: item.Namespace,
-		})
-		if err != nil {
-			return nil, nil, err
-		}
-	}
-
-	logger.Info("valkey resources were successfully deleted")
-
-	return status, []string{}, nil
 }

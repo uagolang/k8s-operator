@@ -153,14 +153,30 @@ func (s *valkeyService) updateDeployment(ctx context.Context, i *UpdateRequest) 
 	return nil
 }
 
-func (s *valkeyService) updateService(ctx context.Context, i *UpdateRequest) error {
+func (s *valkeyService) getService(ctx context.Context, i types.NamespacedName) (*corev1.Service, error) {
 	res := new(corev1.Service)
-	err := s.k8sClient.Get(ctx, types.NamespacedName{
+	err := s.k8sClient.Get(ctx, i, res)
+	if err != nil {
+		if k8serrors.IsNotFound(err) {
+			return nil, nil
+		}
+
+		return nil, err
+	}
+
+	return res, nil
+}
+
+func (s *valkeyService) updateService(ctx context.Context, i *UpdateRequest) error {
+	res, err := s.getService(ctx, types.NamespacedName{
 		Name:      i.CrdName,
 		Namespace: i.Namespace,
-	}, res)
+	})
 	if err != nil {
 		return err
+	}
+	if res == nil {
+		return nil
 	}
 
 	err = s.k8sClient.Update(ctx, res)

@@ -3,13 +3,16 @@ package valkey
 import (
 	"context"
 	"encoding/base64"
+	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/apimachinery/pkg/util/wait"
 
 	"github.com/uagolang/k8s-operator/api/v1alpha1"
 	"github.com/uagolang/k8s-operator/internal/lib/validator"
@@ -60,12 +63,31 @@ func (s *valkeyService) createSecret(ctx context.Context, i *CreateRequest) (*co
 			secretKeyPassword: base64.StdEncoding.EncodeToString([]byte(i.Password)),
 		},
 	}
-	err := s.k8sClient.Create(ctx, res)
-	if err != nil && !k8serrors.IsAlreadyExists(err) {
+	if err := s.k8sClient.Create(ctx, res); err != nil && !k8serrors.IsAlreadyExists(err) {
 		return nil, err
 	}
 
-	return res, nil
+	return res, s.waitForSecret(res.Name, res.Namespace, 5*time.Second)
+}
+
+func (s *valkeyService) waitForSecret(name, namespace string, dur time.Duration) error {
+	ctx, cancel := context.WithTimeout(context.Background(), dur)
+	defer cancel()
+
+	return wait.PollUntilContextTimeout(ctx, pollInterval, dur, false, func(ctx context.Context) (bool, error) {
+		_, err := s.getSecret(ctx, types.NamespacedName{
+			Name:      name,
+			Namespace: namespace,
+		})
+		if err == nil {
+			return true, nil
+		}
+		if k8serrors.IsNotFound(err) {
+			return false, nil
+		}
+
+		return false, err
+	})
 }
 
 func (s *valkeyService) createDeployment(ctx context.Context, i *CreateRequest) (*appsv1.Deployment, error) {
@@ -172,6 +194,26 @@ func (s *valkeyService) createDeployment(ctx context.Context, i *CreateRequest) 
 	return res, nil
 }
 
+func (s *valkeyService) waitForDeployment(name, namespace string, dur time.Duration) error {
+	ctx, cancel := context.WithTimeout(context.Background(), dur)
+	defer cancel()
+
+	return wait.PollUntilContextTimeout(ctx, pollInterval, dur, true, func(ctx context.Context) (bool, error) {
+		_, err := s.getDeployment(ctx, types.NamespacedName{
+			Name:      name,
+			Namespace: namespace,
+		})
+		if err == nil {
+			return true, nil
+		}
+		if k8serrors.IsNotFound(err) {
+			return false, nil
+		}
+
+		return false, err
+	})
+}
+
 func (s *valkeyService) createService(ctx context.Context, i *CreateRequest) (*corev1.Service, error) {
 	res := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
@@ -195,4 +237,21 @@ func (s *valkeyService) createService(ctx context.Context, i *CreateRequest) (*c
 	}
 
 	return res, nil
+}
+
+func (s *valkeyService) waitForService(i types.NamespacedName, dur time.Duration) error {
+	ctx, cancel := context.WithTimeout(context.Background(), dur)
+	defer cancel()
+
+	return wait.PollUntilContextTimeout(ctx, pollInterval, dur, true, func(ctx context.Context) (bool, error) {
+		_, err := s.getService(ctx, i)
+		if err == nil {
+			return true, nil
+		}
+		if k8serrors.IsNotFound(err) {
+			return false, nil
+		}
+
+		return false, err
+	})
 }

@@ -62,12 +62,15 @@ func (r *ValkeyReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		}
 	}
 
+	status := new(databasev1alpha1.ValkeyStatus)
 	statusItem, finalizers, err := r.Flow.Run(ctx, *item)
-	status, ok := statusItem.(*databasev1alpha1.ValkeyStatus)
-	if !ok {
-		return emptyResp, flows.ErrInvalidOutputType
-	}
-	if err != nil {
+	if err == nil {
+		var ok bool
+		status, ok = statusItem.(*databasev1alpha1.ValkeyStatus)
+		if !ok {
+			return emptyResp, flows.ErrInvalidOutputType
+		}
+	} else {
 		status = &databasev1alpha1.ValkeyStatus{
 			Status:          valkey.StatusFailed,
 			LastReconcileAt: utils.Pointer(metav1.Now()),
