@@ -22,7 +22,3 @@ resources:
 # if you do not want those helpers be installed with your Project.
 - valkey_editor_role.yaml
 - valkey_viewer_role.yaml
-- postgres_editor_role.yaml
-- postgres_viewer_role.yaml
-- postgresdatabase_editor_role.yaml
-- postgresdatabase_viewer_role.yaml
