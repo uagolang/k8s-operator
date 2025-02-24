@@ -74,7 +74,7 @@ func (s *valkeyService) waitForSecret(name, namespace string, dur time.Duration)
 	ctx, cancel := context.WithTimeout(context.Background(), dur)
 	defer cancel()
 
-	return wait.PollUntilContextTimeout(ctx, pollInterval, dur, false, func(ctx context.Context) (bool, error) {
+	return wait.PollUntilContextTimeout(ctx, pollInterval, dur, true, func(ctx context.Context) (bool, error) {
 		_, err := s.getSecret(ctx, types.NamespacedName{
 			Name:      name,
 			Namespace: namespace,
