@@ -8,29 +8,36 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+
+	"github.com/uagolang/k8s-operator/internal/lib/validator"
 )
 
-func (s *valkeyService) Delete(ctx context.Context, i types.NamespacedName) error {
-	err := s.deleteService(ctx, types.NamespacedName{
+type DeleteRequest struct {
+	Name      string `json:"name" validate:"required"`
+	Namespace string `json:"namespace" validate:"required"`
+}
+
+func (s *valkeyService) Delete(ctx context.Context, i *DeleteRequest) error {
+	if err := validator.Validate(ctx, i); err != nil {
+		return err
+	}
+
+	namespaced := types.NamespacedName{
 		Name:      i.Name,
 		Namespace: i.Namespace,
-	})
+	}
+
+	err := s.deleteService(ctx, namespaced)
 	if err != nil {
 		return err
 	}
 
-	err = s.deleteDeployment(ctx, types.NamespacedName{
-		Name:      i.Name,
-		Namespace: i.Namespace,
-	})
+	err = s.deleteDeployment(ctx, namespaced)
 	if err != nil {
 		return err
 	}
 
-	err = s.deleteSecret(ctx, types.NamespacedName{
-		Name:      i.Name,
-		Namespace: i.Namespace,
-	})
+	err = s.deleteSecret(ctx, namespaced)
 	if err != nil {
 		return err
 	}
@@ -63,11 +70,7 @@ func (s *valkeyService) deleteDeployment(ctx context.Context, i types.Namespaced
 			Namespace: i.Namespace,
 		},
 	})
-	if err != nil {
-		if k8serrors.IsNotFound(err) {
-			return nil
-		}
-
+	if err != nil && !k8serrors.IsNotFound(err) {
 		return err
 	}
 

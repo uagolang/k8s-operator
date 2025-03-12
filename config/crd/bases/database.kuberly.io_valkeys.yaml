@@ -36,6 +36,15 @@ spec:
     - jsonPath: .spec.volume.storage
       name: Volume size
       type: string
+    - jsonPath: .spec.status.resource_info.secret_ready
+      name: Secret ready
+      type: boolean
+    - jsonPath: .spec.status.resource_info.deployment_ready
+      name: Deployment ready
+      type: boolean
+    - jsonPath: .spec.status.resource_info.service_ready
+      name: Service ready
+      type: boolean
     - jsonPath: .spec.replicas
       name: Replicas
       type: integer
@@ -145,11 +154,33 @@ spec:
                 description: ReadyReplicas is a number of working replicas
                 format: int32
                 type: integer
+              resources_info:
+                properties:
+                  deployment_name:
+                    type: string
+                  deployment_ready:
+                    type: boolean
+                  namespace:
+                    type: string
+                  secret_name:
+                    type: string
+                  secret_ready:
+                    type: boolean
+                  service_name:
+                    type: string
+                  service_ready:
+                    type: boolean
+                required:
+                - deployment_ready
+                - secret_ready
+                - service_ready
+                type: object
               status:
                 description: Status could be 'running', 'failed', 'stopped'
                 type: string
             required:
             - ready_replicas
+            - resources_info
             type: object
         type: object
     served: true

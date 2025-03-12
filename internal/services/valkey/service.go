@@ -3,17 +3,14 @@ package valkey
 import (
 	"context"
 
-	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	"github.com/uagolang/k8s-operator/api/v1alpha1"
 )
 
 type Service interface {
-	Create(ctx context.Context, i *CreateRequest) (*v1alpha1.Valkey, error)
+	Create(ctx context.Context, i *CreateRequest) error
 	Update(ctx context.Context, i *UpdateRequest) error
-	IsReady(ctx context.Context, item *v1alpha1.Valkey) (bool, int32, error)
-	Delete(ctx context.Context, i types.NamespacedName) error
+	IsReady(ctx context.Context, i *IsReadyRequest) (bool, int32, error)
+	Delete(ctx context.Context, i *DeleteRequest) error
 }
 
 type valkeyService struct {

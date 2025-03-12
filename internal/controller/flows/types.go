@@ -3,6 +3,8 @@ package flows
 import (
 	"context"
 	"errors"
+
+	"k8s.io/apimachinery/pkg/runtime"
 )
 
 var (
@@ -13,3 +15,5 @@ var (
 type Flow interface {
 	Run(ctx context.Context, item any) (status any, finalizers []string, err error)
 }
+
+var FakeComponents = []runtime.Object{}

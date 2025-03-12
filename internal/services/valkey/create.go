@@ -30,27 +30,27 @@ type CreateRequest struct {
 	Resource  v1alpha1.Resource `json:"resource" validate:"required"`
 }
 
-func (s *valkeyService) Create(ctx context.Context, i *CreateRequest) (*v1alpha1.Valkey, error) {
+func (s *valkeyService) Create(ctx context.Context, i *CreateRequest) error {
 	if err := validator.Validate(ctx, i); err != nil {
-		return nil, err
+		return err
 	}
 
 	_, err := s.createSecret(ctx, i)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	_, err = s.createDeployment(ctx, i)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	_, err = s.createService(ctx, i)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	return nil, nil
+	return nil
 }
 
 func (s *valkeyService) createSecret(ctx context.Context, i *CreateRequest) (*corev1.Secret, error) {
@@ -67,7 +67,7 @@ func (s *valkeyService) createSecret(ctx context.Context, i *CreateRequest) (*co
 		return nil, err
 	}
 
-	return res, s.waitForSecret(res.Name, res.Namespace, 5*time.Second)
+	return res, s.waitForSecret(res.Name, res.Namespace, defaultWaitDuration)
 }
 
 func (s *valkeyService) waitForSecret(name, namespace string, dur time.Duration) error {
@@ -75,18 +75,19 @@ func (s *valkeyService) waitForSecret(name, namespace string, dur time.Duration)
 	defer cancel()
 
 	return wait.PollUntilContextTimeout(ctx, pollInterval, dur, true, func(ctx context.Context) (bool, error) {
-		_, err := s.getSecret(ctx, types.NamespacedName{
+		sec, err := s.getSecret(ctx, types.NamespacedName{
 			Name:      name,
 			Namespace: namespace,
 		})
-		if err == nil {
-			return true, nil
+		if err != nil {
+			return false, err
 		}
-		if k8serrors.IsNotFound(err) {
+
+		if sec == nil {
 			return false, nil
 		}
 
-		return false, err
+		return true, nil
 	})
 }
 
@@ -191,7 +192,7 @@ func (s *valkeyService) createDeployment(ctx context.Context, i *CreateRequest) 
 		return nil, err
 	}
 
-	return res, nil
+	return res, s.waitForDeployment(i.CrdName, i.Namespace, defaultWaitDuration)
 }
 
 func (s *valkeyService) waitForDeployment(name, namespace string, dur time.Duration) error {
@@ -199,18 +200,19 @@ func (s *valkeyService) waitForDeployment(name, namespace string, dur time.Durat
 	defer cancel()
 
 	return wait.PollUntilContextTimeout(ctx, pollInterval, dur, true, func(ctx context.Context) (bool, error) {
-		_, err := s.getDeployment(ctx, types.NamespacedName{
+		dep, err := s.getDeployment(ctx, types.NamespacedName{
 			Name:      name,
 			Namespace: namespace,
 		})
-		if err == nil {
-			return true, nil
+		if err != nil {
+			return false, err
 		}
-		if k8serrors.IsNotFound(err) {
+
+		if dep == nil {
 			return false, nil
 		}
 
-		return false, err
+		return true, nil
 	})
 }
 
@@ -236,7 +238,10 @@ func (s *valkeyService) createService(ctx context.Context, i *CreateRequest) (*c
 		return nil, err
 	}
 
-	return res, nil
+	return res, s.waitForService(types.NamespacedName{
+		Name:      i.CrdName,
+		Namespace: i.Namespace,
+	}, defaultWaitDuration)
 }
 
 func (s *valkeyService) waitForService(i types.NamespacedName, dur time.Duration) error {
@@ -244,14 +249,15 @@ func (s *valkeyService) waitForService(i types.NamespacedName, dur time.Duration
 	defer cancel()
 
 	return wait.PollUntilContextTimeout(ctx, pollInterval, dur, true, func(ctx context.Context) (bool, error) {
-		_, err := s.getService(ctx, i)
-		if err == nil {
-			return true, nil
+		svc, err := s.getService(ctx, i)
+		if err != nil {
+			return false, err
 		}
-		if k8serrors.IsNotFound(err) {
+
+		if svc == nil {
 			return false, nil
 		}
 
-		return false, err
+		return true, nil
 	})
 }

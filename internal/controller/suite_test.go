@@ -18,12 +18,16 @@ package controller
 
 import (
 	"fmt"
+	"log"
 	"path/filepath"
 	"runtime"
 	"testing"
 
+	"github.com/joho/godotenv"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"go.uber.org/mock/gomock"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
@@ -33,6 +37,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	databasev1alpha1 "github.com/uagolang/k8s-operator/api/v1alpha1"
+	"github.com/uagolang/k8s-operator/internal/controller/flows"
+	"github.com/uagolang/k8s-operator/mocks"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -42,8 +48,21 @@ import (
 var cfg *rest.Config
 var k8sClient client.Client
 var testEnv *envtest.Environment
+var ctrl = gomock.NewController(GinkgoT())
+var controllerValkey *ValkeyReconciler
+
+var (
+	mockK8sClient *mocks.MockK8sClient
+	mockFlow      *mocks.MockFlow
+	mockValkeySvc *mocks.MockValkeyService
+)
 
 func TestControllers(t *testing.T) {
+	err := godotenv.Load(".env")
+	if err != nil {
+		log.Fatal("error loading .env file")
+	}
+
 	RegisterFailHandler(Fail)
 
 	RunSpecs(t, "Controller Suite")
@@ -77,10 +96,33 @@ var _ = BeforeSuite(func() {
 
 	//+kubebuilder:scaffold:scheme
 
-	k8sClient, err = client.New(cfg, client.Options{Scheme: scheme.Scheme})
-	Expect(err).NotTo(HaveOccurred())
+	// use fake k8s client (in-memory)
+	// instead of real cluster connection
+	k8sClient = fake.NewClientBuilder().
+		WithScheme(scheme.Scheme).
+		// you can add some object for seed cluster
+		// with needed resource objects
+		WithRuntimeObjects(flows.FakeComponents...).
+		// register Status sub-resources to have an ability
+		// to Update resource Status object
+		WithStatusSubresource(
+			&databasev1alpha1.Valkey{},
+		).
+		Build()
+	// just test that fake client was initialized
 	Expect(k8sClient).NotTo(BeNil())
 
+	// init mocks
+	mockK8sClient = mocks.NewMockK8sClient(ctrl)
+	mockFlow = mocks.NewMockFlow(ctrl)
+	mockValkeySvc = mocks.NewMockValkeyService(ctrl)
+
+	// init crd controllers
+	controllerValkey = &ValkeyReconciler{
+		Client: k8sClient,
+		Scheme: k8sClient.Scheme(),
+		Flow:   mockFlow,
+	}
 })
 
 var _ = AfterSuite(func() {

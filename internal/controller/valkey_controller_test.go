@@ -30,42 +30,65 @@ import (
 	databasev1alpha1 "github.com/uagolang/k8s-operator/api/v1alpha1"
 )
 
+var defaultNamespace = "default"
+
 var _ = Describe("Valkey Controller", func() {
-	Context("When reconciling a resource", func() {
+	Context("Resource reconciling", func() {
 		const resourceName = "test-resource"
+		const valkeyImage = "valkey/valkey:latest"
+		const storage = "1Gi"
 
 		ctx := context.Background()
 
 		typeNamespacedName := types.NamespacedName{
 			Name:      resourceName,
-			Namespace: "default", // TODO(user):Modify as needed
+			Namespace: defaultNamespace,
+		}
+		resourceObjectMeta := metav1.ObjectMeta{
+			Name:      resourceName,
+			Namespace: defaultNamespace,
 		}
 		valkey := &databasev1alpha1.Valkey{}
 
 		BeforeEach(func() {
-			By("creating the custom resource for the Kind Valkey")
+			By("beforeEach: create Valkey")
 			err := k8sClient.Get(ctx, typeNamespacedName, valkey)
 			if err != nil && errors.IsNotFound(err) {
 				resource := &databasev1alpha1.Valkey{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      resourceName,
-						Namespace: "default",
+					ObjectMeta: resourceObjectMeta,
+					Spec: databasev1alpha1.ValkeySpec{
+						Image:    valkeyImage,
+						Replicas: 1,
+						User:     "user",
+						Password: "password",
+						Volume: databasev1alpha1.Volume{
+							Enabled: true,
+							Storage: storage,
+						},
+						Resource: databasev1alpha1.Resource{
+							CPU:     "200m", // 0.2 CPU
+							Memory:  "256Mi",
+							Storage: storage,
+						},
 					},
-					// TODO(user): Specify other spec details if needed.
 				}
 				Expect(k8sClient.Create(ctx, resource)).To(Succeed())
 			}
 		})
 
 		AfterEach(func() {
-			// TODO(user): Cleanup logic after each test, like removing the resource instance.
 			resource := &databasev1alpha1.Valkey{}
 			err := k8sClient.Get(ctx, typeNamespacedName, resource)
 			Expect(err).NotTo(HaveOccurred())
 
-			By("Cleanup the specific resource instance Valkey")
+			By("afterEach: cleanup Valkey")
+			if len(resource.GetFinalizers()) > 0 {
+				resource.Finalizers = []string{}
+				Expect(controllerValkey.Client.Update(ctx, resource)).To(Succeed())
+			}
 			Expect(k8sClient.Delete(ctx, resource)).To(Succeed())
 		})
+
 		It("should successfully reconcile the resource", func() {
 			By("Reconciling the created resource")
 			controllerReconciler := &ValkeyReconciler{

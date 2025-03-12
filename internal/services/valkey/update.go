@@ -30,14 +30,12 @@ func (s *valkeyService) Update(ctx context.Context, i *UpdateRequest) error {
 		return err
 	}
 
-	if i.Password != nil && *i.Password != "" {
-		err := s.updateSecret(ctx, i)
-		if err != nil {
-			return err
-		}
+	err := s.updateSecret(ctx, i)
+	if err != nil {
+		return err
 	}
 
-	err := s.updateDeployment(ctx, i)
+	err = s.updateDeployment(ctx, i)
 	if err != nil {
 		return err
 	}
@@ -68,6 +66,10 @@ func (s *valkeyService) getSecret(ctx context.Context, i types.NamespacedName) (
 }
 
 func (s *valkeyService) updateSecret(ctx context.Context, i *UpdateRequest) error {
+	if i.Password == nil || *i.Password == "" {
+		return nil
+	}
+
 	res, err := s.getSecret(ctx, types.NamespacedName{
 		Name:      i.CrdName,
 		Namespace: i.Namespace,
@@ -79,6 +81,9 @@ func (s *valkeyService) updateSecret(ctx context.Context, i *UpdateRequest) erro
 		return nil
 	}
 
+	if res.Data == nil {
+		res.Data = make(map[string][]byte)
+	}
 	res.Data[secretKeyPassword] = []byte(base64.StdEncoding.EncodeToString([]byte(*i.Password)))
 
 	err = s.k8sClient.Update(ctx, res)
