@@ -13,10 +13,8 @@ import (
 	context "context"
 	reflect "reflect"
 
-	v1alpha1 "github.com/uagolang/k8s-operator/api/v1alpha1"
 	valkey "github.com/uagolang/k8s-operator/internal/services/valkey"
 	gomock "go.uber.org/mock/gomock"
-	types "k8s.io/apimachinery/pkg/types"
 )
 
 // MockValkeyService is a mock of Service interface.
@@ -44,12 +42,11 @@ func (m *MockValkeyService) EXPECT() *MockValkeyServiceMockRecorder {
 }
 
 // Create mocks base method.
-func (m *MockValkeyService) Create(ctx context.Context, i *valkey.CreateRequest) (*v1alpha1.Valkey, error) {
+func (m *MockValkeyService) Create(ctx context.Context, i *valkey.CreateRequest) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Create", ctx, i)
-	ret0, _ := ret[0].(*v1alpha1.Valkey)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
+	ret0, _ := ret[0].(error)
+	return ret0
 }
 
 // Create indicates an expected call of Create.
@@ -59,7 +56,7 @@ func (mr *MockValkeyServiceMockRecorder) Create(ctx, i any) *gomock.Call {
 }
 
 // Delete mocks base method.
-func (m *MockValkeyService) Delete(ctx context.Context, i types.NamespacedName) error {
+func (m *MockValkeyService) Delete(ctx context.Context, i *valkey.DeleteRequest) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Delete", ctx, i)
 	ret0, _ := ret[0].(error)
@@ -73,9 +70,9 @@ func (mr *MockValkeyServiceMockRecorder) Delete(ctx, i any) *gomock.Call {
 }
 
 // IsReady mocks base method.
-func (m *MockValkeyService) IsReady(ctx context.Context, item *v1alpha1.Valkey) (bool, int32, error) {
+func (m *MockValkeyService) IsReady(ctx context.Context, i *valkey.IsReadyRequest) (bool, int32, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "IsReady", ctx, item)
+	ret := m.ctrl.Call(m, "IsReady", ctx, i)
 	ret0, _ := ret[0].(bool)
 	ret1, _ := ret[1].(int32)
 	ret2, _ := ret[2].(error)
@@ -83,9 +80,9 @@ func (m *MockValkeyService) IsReady(ctx context.Context, item *v1alpha1.Valkey) 
 }
 
 // IsReady indicates an expected call of IsReady.
-func (mr *MockValkeyServiceMockRecorder) IsReady(ctx, item any) *gomock.Call {
+func (mr *MockValkeyServiceMockRecorder) IsReady(ctx, i any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsReady", reflect.TypeOf((*MockValkeyService)(nil).IsReady), ctx, item)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsReady", reflect.TypeOf((*MockValkeyService)(nil).IsReady), ctx, i)
 }
 
 // Update mocks base method.
