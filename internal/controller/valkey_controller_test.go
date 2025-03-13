@@ -22,11 +22,14 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"go.uber.org/mock/gomock"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	databasev1alpha1 "github.com/uagolang/k8s-operator/api/v1alpha1"
+	"github.com/uagolang/k8s-operator/internal/controller/flows"
 	"github.com/uagolang/k8s-operator/internal/controller/flows/valkey"
 )
 
@@ -89,8 +92,140 @@ var _ = Describe("Valkey Controller", func() {
 
 		It("should successfully reconcile the resource", func() {
 			mockFlow.EXPECT().Run(gomock.Any(), gomock.Any()).Return(&databasev1alpha1.ValkeyStatus{
-				Status: "healthy",
+				Status: databasev1alpha1.TypeStatusHealthy,
 			}, []string{valkey.Finalizer}, nil)
+
+			_, err := controllerValkey.Reconcile(ctx, reconcile.Request{
+				NamespacedName: typeNamespacedName,
+			})
+			Expect(err).NotTo(HaveOccurred())
+		})
+
+		It("get resource internal error", func() {
+			controllerValkey.SetK8sClient(mockK8sClient)
+			defer controllerValkey.RollbackK8sClient()
+
+			// internal error
+			mockK8sClient.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(mockErr)
+
+			_, err := controllerValkey.Reconcile(ctx, reconcile.Request{
+				NamespacedName: typeNamespacedName,
+			})
+			Expect(err).To(HaveOccurred())
+		})
+
+		It("get resource not found error", func() {
+			controllerValkey.SetK8sClient(mockK8sClient)
+			defer controllerValkey.RollbackK8sClient()
+
+			notFoundErr := k8serrors.NewNotFound(schema.GroupResource{
+				Group:    "",
+				Resource: "valkey",
+			}, resourceName)
+			mockK8sClient.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(notFoundErr)
+
+			_, err := controllerValkey.Reconcile(ctx, reconcile.Request{
+				NamespacedName: typeNamespacedName,
+			})
+			Expect(err).To(HaveOccurred())
+		})
+
+		It("flow run returns undefined status type error", func() {
+			mockFlow.EXPECT().Run(gomock.Any(), gomock.Any()).Return(&databasev1alpha1.ValkeySpec{}, []string{valkey.Finalizer}, nil)
+
+			_, err := controllerValkey.Reconcile(ctx, reconcile.Request{
+				NamespacedName: typeNamespacedName,
+			})
+			Expect(err).To(HaveOccurred())
+			Expect(err).To(Equal(flows.ErrInvalidOutputType))
+		})
+
+		It("flow run returns internal error", func() {
+			mockFlow.EXPECT().Run(gomock.Any(), gomock.Any()).Return(&databasev1alpha1.ValkeyStatus{}, []string{}, mockErr)
+
+			_, err := controllerValkey.Reconcile(ctx, reconcile.Request{
+				NamespacedName: typeNamespacedName,
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			res := new(databasev1alpha1.Valkey)
+			err = controllerValkey.Client.Get(ctx, typeNamespacedName, res)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(res.Status.Status).To(Equal(databasev1alpha1.TypeStatusFailed))
+			Expect(res.Status.Error).To(Equal(mockErr.Error()))
+			Expect(res.Status.LastReconcileAt).NotTo(BeZero())
+		})
+
+		It("update resource internal error", func() {
+			controllerValkey.SetK8sClient(mockK8sClient)
+			defer controllerValkey.RollbackK8sClient()
+
+			mockK8sClient.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
+			mockFlow.EXPECT().Run(gomock.Any(), gomock.Any()).Return(&databasev1alpha1.ValkeyStatus{}, []string{}, mockErr)
+			mockK8sClient.EXPECT().Status().Return(mockK8sStatusClient)
+			mockK8sStatusClient.EXPECT().Update(gomock.Any(), gomock.Any()).Return(mockErr)
+
+			_, err := controllerValkey.Reconcile(ctx, reconcile.Request{
+				NamespacedName: typeNamespacedName,
+			})
+			Expect(err).To(HaveOccurred())
+		})
+
+		It("update resource not found error", func() {
+			controllerValkey.SetK8sClient(mockK8sClient)
+			defer controllerValkey.RollbackK8sClient()
+
+			mockK8sClient.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
+			mockFlow.EXPECT().Run(gomock.Any(), gomock.Any()).Return(&databasev1alpha1.ValkeyStatus{}, []string{}, mockErr)
+			mockK8sClient.EXPECT().Status().Return(mockK8sStatusClient)
+			mockK8sStatusClient.EXPECT().Update(gomock.Any(), gomock.Any()).Return(k8serrors.NewNotFound(
+				schema.GroupResource{Group: "", Resource: "valkey"},
+				resourceName,
+			))
+
+			_, err := controllerValkey.Reconcile(ctx, reconcile.Request{
+				NamespacedName: typeNamespacedName,
+			})
+			Expect(err).To(HaveOccurred())
+		})
+
+		It("update finalizers internal error", func() {
+			controllerValkey.SetK8sClient(mockK8sClient)
+			defer controllerValkey.RollbackK8sClient()
+
+			mockK8sClient.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
+			mockFlow.EXPECT().Run(gomock.Any(), gomock.Any()).Return(&databasev1alpha1.ValkeyStatus{}, []string{valkey.Finalizer}, nil)
+			mockK8sClient.EXPECT().Update(gomock.Any(), gomock.Any()).Return(mockErr)
+
+			_, err := controllerValkey.Reconcile(ctx, reconcile.Request{
+				NamespacedName: typeNamespacedName,
+			})
+			Expect(err).To(HaveOccurred())
+		})
+
+		It("update finalizers not found error", func() {
+			controllerValkey.SetK8sClient(mockK8sClient)
+			defer controllerValkey.RollbackK8sClient()
+
+			mockK8sClient.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
+			mockFlow.EXPECT().Run(gomock.Any(), gomock.Any()).Return(&databasev1alpha1.ValkeyStatus{}, []string{valkey.Finalizer}, nil)
+			mockK8sClient.EXPECT().Update(gomock.Any(), gomock.Any()).Return(k8serrors.NewNotFound(
+				schema.GroupResource{Group: "", Resource: "valkey"},
+				resourceName,
+			))
+
+			_, err := controllerValkey.Reconcile(ctx, reconcile.Request{
+				NamespacedName: typeNamespacedName,
+			})
+			Expect(err).To(HaveOccurred())
+		})
+
+		It("nothing changed", func() {
+			controllerValkey.SetK8sClient(mockK8sClient)
+			defer controllerValkey.RollbackK8sClient()
+
+			mockK8sClient.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
+			mockFlow.EXPECT().Run(gomock.Any(), gomock.Any()).Return(&databasev1alpha1.ValkeyStatus{}, []string{}, nil)
 
 			_, err := controllerValkey.Reconcile(ctx, reconcile.Request{
 				NamespacedName: typeNamespacedName,

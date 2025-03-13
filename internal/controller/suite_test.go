@@ -17,6 +17,7 @@ limitations under the License.
 package controller
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"path/filepath"
@@ -50,12 +51,13 @@ var (
 	k8sClient        client.Client
 	testEnv          *envtest.Environment
 	controllerValkey *ValkeyReconciler
+	mockErr          = errors.New("mock error")
 )
 
 var (
-	mockK8sClient *mocks.MockK8sClient
-	mockFlow      *mocks.MockFlow
-	mockValkeySvc *mocks.MockValkeyService
+	mockK8sClient       *mocks.MockK8sClient
+	mockK8sStatusClient *mocks.MockK8sStatusClient
+	mockFlow            *mocks.MockFlow
 )
 
 func init() {
@@ -120,7 +122,7 @@ var _ = BeforeSuite(func() {
 	// init mocks
 	mockK8sClient = mocks.NewMockK8sClient(mockCtrl)
 	mockFlow = mocks.NewMockFlow(mockCtrl)
-	mockValkeySvc = mocks.NewMockValkeyService(mockCtrl)
+	mockK8sStatusClient = mocks.NewMockK8sStatusClient(mockCtrl)
 
 	// init crd controllers
 	controllerValkey = &ValkeyReconciler{

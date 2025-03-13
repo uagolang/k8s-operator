@@ -30,13 +30,29 @@ import (
 	databasev1alpha1 "github.com/uagolang/k8s-operator/api/v1alpha1"
 	"github.com/uagolang/k8s-operator/internal/controller/flows"
 	"github.com/uagolang/k8s-operator/internal/utils"
+	"github.com/uagolang/k8s-operator/mocks"
 )
 
 // ValkeyReconciler reconciles a Valkey object
 type ValkeyReconciler struct {
 	client.Client
+
+	fakeClient client.Client
+
 	Scheme *runtime.Scheme
 	Flow   flows.Flow
+}
+
+func (r *ValkeyReconciler) SetK8sClient(c *mocks.MockK8sClient) {
+	r.fakeClient = r.Client
+	r.Client = c
+}
+
+func (r *ValkeyReconciler) RollbackK8sClient() {
+	if r.fakeClient != nil {
+		r.Client = r.fakeClient
+		r.fakeClient = nil
+	}
 }
 
 //+kubebuilder:rbac:groups=database.kuberly.io,resources=valkeys,verbs=get;list;watch;create;update;patch;delete
