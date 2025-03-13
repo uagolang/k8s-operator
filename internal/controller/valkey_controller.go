@@ -29,7 +29,6 @@ import (
 
 	databasev1alpha1 "github.com/uagolang/k8s-operator/api/v1alpha1"
 	"github.com/uagolang/k8s-operator/internal/controller/flows"
-	"github.com/uagolang/k8s-operator/internal/controller/flows/valkey"
 	"github.com/uagolang/k8s-operator/internal/utils"
 )
 
@@ -73,7 +72,7 @@ func (r *ValkeyReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		}
 	} else {
 		status = &databasev1alpha1.ValkeyStatus{
-			Status:          valkey.StatusFailed,
+			Status:          databasev1alpha1.TypeStatusFailed,
 			LastReconcileAt: utils.Pointer(metav1.Now()),
 			Error:           err.Error(),
 		}

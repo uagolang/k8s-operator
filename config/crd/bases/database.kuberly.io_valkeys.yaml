@@ -176,7 +176,7 @@ spec:
                 - service_ready
                 type: object
               status:
-                description: Status could be 'running', 'failed', 'stopped'
+                description: Status could be 'healthy', 'failed', 'stopped'
                 type: string
             required:
             - ready_replicas

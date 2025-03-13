@@ -45,11 +45,12 @@ import (
 // These tests use Ginkgo (BDD-style Go testing framework). Refer to
 // http://onsi.github.io/ginkgo/ to learn more about Ginkgo.
 
-var cfg *rest.Config
-var k8sClient client.Client
-var testEnv *envtest.Environment
-var ctrl = gomock.NewController(GinkgoT())
-var controllerValkey *ValkeyReconciler
+var (
+	cfg              *rest.Config
+	k8sClient        client.Client
+	testEnv          *envtest.Environment
+	controllerValkey *ValkeyReconciler
+)
 
 var (
 	mockK8sClient *mocks.MockK8sClient
@@ -57,12 +58,14 @@ var (
 	mockValkeySvc *mocks.MockValkeyService
 )
 
-func TestControllers(t *testing.T) {
-	err := godotenv.Load(".env")
+func init() {
+	err := godotenv.Load("../../.env")
 	if err != nil {
-		log.Fatal("error loading .env file")
+		log.Fatalf("error loading .env file: %v", err)
 	}
+}
 
+func TestControllers(t *testing.T) {
 	RegisterFailHandler(Fail)
 
 	RunSpecs(t, "Controller Suite")
@@ -112,10 +115,12 @@ var _ = BeforeSuite(func() {
 	// just test that fake client was initialized
 	Expect(k8sClient).NotTo(BeNil())
 
+	mockCtrl := gomock.NewController(GinkgoT())
+
 	// init mocks
-	mockK8sClient = mocks.NewMockK8sClient(ctrl)
-	mockFlow = mocks.NewMockFlow(ctrl)
-	mockValkeySvc = mocks.NewMockValkeyService(ctrl)
+	mockK8sClient = mocks.NewMockK8sClient(mockCtrl)
+	mockFlow = mocks.NewMockFlow(mockCtrl)
+	mockValkeySvc = mocks.NewMockValkeyService(mockCtrl)
 
 	// init crd controllers
 	controllerValkey = &ValkeyReconciler{

@@ -21,19 +21,19 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"k8s.io/apimachinery/pkg/api/errors"
+	"go.uber.org/mock/gomock"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 	databasev1alpha1 "github.com/uagolang/k8s-operator/api/v1alpha1"
+	"github.com/uagolang/k8s-operator/internal/controller/flows/valkey"
 )
 
-var defaultNamespace = "default"
+const defaultNamespace = "default"
 
 var _ = Describe("Valkey Controller", func() {
-	Context("Resource reconciling", func() {
+	Context("Resource reconcile process", func() {
 		const resourceName = "test-resource"
 		const valkeyImage = "valkey/valkey:latest"
 		const storage = "1Gi"
@@ -48,32 +48,30 @@ var _ = Describe("Valkey Controller", func() {
 			Name:      resourceName,
 			Namespace: defaultNamespace,
 		}
-		valkey := &databasev1alpha1.Valkey{}
+
+		resource := &databasev1alpha1.Valkey{
+			ObjectMeta: resourceObjectMeta,
+			Spec: databasev1alpha1.ValkeySpec{
+				Image:    valkeyImage,
+				Replicas: 1,
+				User:     "user",
+				Password: "password",
+				Volume: databasev1alpha1.Volume{
+					Enabled: true,
+					Storage: storage,
+				},
+				Resource: databasev1alpha1.Resource{
+					CPU:     "200m", // 0.2 CPU
+					Memory:  "256Mi",
+					Storage: storage,
+				},
+			},
+		}
 
 		BeforeEach(func() {
 			By("beforeEach: create Valkey")
-			err := k8sClient.Get(ctx, typeNamespacedName, valkey)
-			if err != nil && errors.IsNotFound(err) {
-				resource := &databasev1alpha1.Valkey{
-					ObjectMeta: resourceObjectMeta,
-					Spec: databasev1alpha1.ValkeySpec{
-						Image:    valkeyImage,
-						Replicas: 1,
-						User:     "user",
-						Password: "password",
-						Volume: databasev1alpha1.Volume{
-							Enabled: true,
-							Storage: storage,
-						},
-						Resource: databasev1alpha1.Resource{
-							CPU:     "200m", // 0.2 CPU
-							Memory:  "256Mi",
-							Storage: storage,
-						},
-					},
-				}
-				Expect(k8sClient.Create(ctx, resource)).To(Succeed())
-			}
+			resource.ResourceVersion = ""
+			Expect(controllerValkey.Client.Create(ctx, resource)).To(Succeed())
 		})
 
 		AfterEach(func() {
@@ -90,18 +88,14 @@ var _ = Describe("Valkey Controller", func() {
 		})
 
 		It("should successfully reconcile the resource", func() {
-			By("Reconciling the created resource")
-			controllerReconciler := &ValkeyReconciler{
-				Client: k8sClient,
-				Scheme: k8sClient.Scheme(),
-			}
+			mockFlow.EXPECT().Run(gomock.Any(), gomock.Any()).Return(&databasev1alpha1.ValkeyStatus{
+				Status: "healthy",
+			}, []string{valkey.Finalizer}, nil)
 
-			_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
+			_, err := controllerValkey.Reconcile(ctx, reconcile.Request{
 				NamespacedName: typeNamespacedName,
 			})
 			Expect(err).NotTo(HaveOccurred())
-			// TODO(user): Add more specific assertions depending on your controller's reconciliation logic.
-			// Example: If you expect a certain status condition after reconciliation, verify it here.
 		})
 	})
 })

@@ -101,16 +101,16 @@ func TestService(t *testing.T) {
 			require.Len(t, errs, 3)
 			require.Equal(t, validatorlib.Errors{
 				{
-					"crd_name",
-					"crd_name is a required field",
+					Field:   "crd_name",
+					Message: "crd_name is a required field",
 				},
 				{
-					"namespace",
-					"namespace is a required field",
+					Field:   "namespace",
+					Message: "namespace is a required field",
 				},
 				{
-					"image",
-					"image is a required field",
+					Field:   "image",
+					Message: "image is a required field",
 				},
 			}, errs)
 		})
@@ -245,12 +245,12 @@ func TestService(t *testing.T) {
 		require.Len(t, errs, 2)
 		require.Equal(t, validatorlib.Errors{
 			{
-				"name",
-				"name is a required field",
+				Field:   "name",
+				Message: "name is a required field",
 			},
 			{
-				"namespace",
-				"namespace is a required field",
+				Field:   "namespace",
+				Message: "namespace is a required field",
 			},
 		}, errs)
 	})
@@ -370,12 +370,12 @@ func TestService(t *testing.T) {
 			require.Len(t, errs, 2)
 			require.Equal(t, validatorlib.Errors{
 				{
-					"crd_name",
-					"crd_name is a required field",
+					Field:   "crd_name",
+					Message: "crd_name is a required field",
 				},
 				{
-					"namespace",
-					"namespace is a required field",
+					Field:   "namespace",
+					Message: "namespace is a required field",
 				},
 			}, errs)
 		})
@@ -534,12 +534,12 @@ func TestService(t *testing.T) {
 			require.Len(t, errs, 2)
 			require.Equal(t, validatorlib.Errors{
 				{
-					"name",
-					"name is a required field",
+					Field:   "name",
+					Message: "name is a required field",
 				},
 				{
-					"namespace",
-					"namespace is a required field",
+					Field:   "namespace",
+					Message: "namespace is a required field",
 				},
 			}, errs)
 		})

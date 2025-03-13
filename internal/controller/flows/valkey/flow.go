@@ -3,7 +3,6 @@ package valkey
 import (
 	"context"
 
-	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
@@ -53,7 +52,7 @@ func (r *FlowImpl) Run(ctx context.Context, input any) (any, []string, error) {
 
 	if !item.DeletionTimestamp.IsZero() { // should be deleted
 		if len(item.Finalizers) > 0 {
-			err := r.valkeySvc.Delete(ctx, types.NamespacedName{
+			err := r.valkeySvc.Delete(ctx, &valkeysvc.DeleteRequest{
 				Name:      item.Name,
 				Namespace: item.Namespace,
 			})
@@ -68,10 +67,9 @@ func (r *FlowImpl) Run(ctx context.Context, input any) (any, []string, error) {
 	}
 
 	if len(item.Finalizers) == 0 { // save finalizers
-		var err error
 		logger.Info("finalizer was added to valkey")
 
-		_, err = r.valkeySvc.Create(ctx, &valkeysvc.CreateRequest{
+		err := r.valkeySvc.Create(ctx, &valkeysvc.CreateRequest{
 			CrdName:   item.Name,
 			Namespace: item.Namespace,
 			Image:     item.Spec.Image,
@@ -85,7 +83,7 @@ func (r *FlowImpl) Run(ctx context.Context, input any) (any, []string, error) {
 			return nil, nil, err
 		}
 
-		res.Status = StatusInProgress
+		res.Status = v1alpha1.TypeStatusUpdating
 
 		return res, []string{Finalizer}, nil
 	}
@@ -104,17 +102,20 @@ func (r *FlowImpl) Run(ctx context.Context, input any) (any, []string, error) {
 		return nil, nil, err
 	}
 
-	ready, readyReplicas, err := r.valkeySvc.IsReady(ctx, &item)
+	ready, readyReplicas, err := r.valkeySvc.IsReady(ctx, &valkeysvc.IsReadyRequest{
+		Name:      item.Name,
+		Namespace: item.Namespace,
+	})
 	if err != nil {
 		return nil, nil, err
 	}
 	if !ready || readyReplicas == 0 {
-		res.Status = StatusStopped
+		res.Status = v1alpha1.TypeStatusStopped
 		return res, []string{}, nil
 	}
 
 	res.ReadyReplicas = readyReplicas
-	res.Status = StatusRunning
+	res.Status = v1alpha1.TypeStatusHealthy
 
 	return res, item.Finalizers, nil
 }

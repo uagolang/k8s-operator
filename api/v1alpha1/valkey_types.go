@@ -90,13 +90,23 @@ type ResourcesInfo struct {
 	ServiceReady bool   `json:"service_ready"`
 }
 
+type TypeStatus string
+
+const (
+	TypeStatusHealthy  TypeStatus = "healthy"
+	TypeStatusFailed   TypeStatus = "failed"
+	TypeStatusUnknown  TypeStatus = "unknown"
+	TypeStatusUpdating TypeStatus = "updating"
+	TypeStatusStopped  TypeStatus = "stopped"
+)
+
 // ValkeyStatus defines the observed state of Valkey
 type ValkeyStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	// Status could be 'running', 'failed', 'stopped'
-	Status string `json:"status,omitempty"`
+	// Status could be 'healthy', 'failed', 'stopped'
+	Status TypeStatus `json:"status,omitempty"`
 	// Error will be filled if some occurs
 	Error string `json:"error,omitempty"`
 	// ReadyReplicas is a number of working replicas
