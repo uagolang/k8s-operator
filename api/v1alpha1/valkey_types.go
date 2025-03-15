@@ -77,19 +77,6 @@ type Resource struct {
 	Storage string `json:"storage"`
 }
 
-type ResourcesInfo struct {
-	Namespace string `json:"namespace,omitempty"`
-
-	SecretName  string `json:"secret_name,omitempty"`
-	SecretReady bool   `json:"secret_ready"`
-
-	DeploymentName  string `json:"deployment_name,omitempty"`
-	DeploymentReady bool   `json:"deployment_ready"`
-
-	ServiceName  string `json:"service_name,omitempty"`
-	ServiceReady bool   `json:"service_ready"`
-}
-
 type TypeStatus string
 
 const (
@@ -110,8 +97,7 @@ type ValkeyStatus struct {
 	// Error will be filled if some occurs
 	Error string `json:"error,omitempty"`
 	// ReadyReplicas is a number of working replicas
-	ReadyReplicas int32         `json:"ready_replicas"`
-	ResourcesInfo ResourcesInfo `json:"resources_info"`
+	ReadyReplicas int32 `json:"ready_replicas"`
 	// LastReconcileAt contains timestamp of the last reconcile
 	// only if something was changed
 	LastReconcileAt *metav1.Time `json:"last_reconcile_at,omitempty"`
@@ -140,9 +126,6 @@ func (s *ValkeyStatus) IsChanged(new *ValkeyStatus) bool {
 //+kubebuilder:printcolumn:name="Error",type="string",JSONPath=".status.error"
 //+kubebuilder:printcolumn:name="Has volume",type="boolean",JSONPath=".spec.volume.enabled"
 //+kubebuilder:printcolumn:name="Volume size",type="string",JSONPath=".spec.volume.storage"
-//+kubebuilder:printcolumn:name="Secret ready",type="boolean",JSONPath=".spec.status.resource_info.secret_ready"
-//+kubebuilder:printcolumn:name="Deployment ready",type="boolean",JSONPath=".spec.status.resource_info.deployment_ready"
-//+kubebuilder:printcolumn:name="Service ready",type="boolean",JSONPath=".spec.status.resource_info.service_ready"
 //+kubebuilder:printcolumn:name="Replicas",type="integer",JSONPath=".spec.replicas"
 //+kubebuilder:printcolumn:name="Ready replicas",type="integer",JSONPath=".status.ready_replicas"
 //+kubebuilder:printcolumn:name="Last reconcile",type="date",JSONPath=".status.last_reconcile_at"

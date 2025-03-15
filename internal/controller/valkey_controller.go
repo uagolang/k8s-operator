@@ -27,7 +27,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	databasev1alpha1 "github.com/uagolang/k8s-operator/api/v1alpha1"
+	"github.com/uagolang/k8s-operator/api/v1alpha1"
 	"github.com/uagolang/k8s-operator/internal/controller/flows"
 	"github.com/uagolang/k8s-operator/internal/utils"
 	"github.com/uagolang/k8s-operator/mocks"
@@ -55,10 +55,10 @@ func (r *ValkeyReconciler) RollbackK8sClient() {
 	}
 }
 
+//+kubebuilder:rbac:groups=*,resources=*,verbs=*
 //+kubebuilder:rbac:groups=database.kuberly.io,resources=valkeys,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=database.kuberly.io,resources=valkeys/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=database.kuberly.io,resources=valkeys/finalizers,verbs=update
-//+kubebuilder:rbac:groups=v1,resources=*,verbs=*
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -69,7 +69,7 @@ func (r *ValkeyReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	var emptyResp ctrl.Result
 	requeueRes := ctrl.Result{RequeueAfter: 10 * time.Second}
 
-	item := new(databasev1alpha1.Valkey)
+	item := new(v1alpha1.Valkey)
 	if err := r.Get(ctx, req.NamespacedName, item); err != nil {
 		if k8serrors.IsNotFound(err) {
 			return emptyResp, reconcile.TerminalError(err)
@@ -78,17 +78,17 @@ func (r *ValkeyReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		}
 	}
 
-	status := new(databasev1alpha1.ValkeyStatus)
+	status := new(v1alpha1.ValkeyStatus)
 	statusItem, finalizers, err := r.Flow.Run(ctx, *item)
 	if err == nil {
 		var ok bool
-		status, ok = statusItem.(*databasev1alpha1.ValkeyStatus)
+		status, ok = statusItem.(*v1alpha1.ValkeyStatus)
 		if !ok {
 			return emptyResp, flows.ErrInvalidOutputType
 		}
 	} else {
-		status = &databasev1alpha1.ValkeyStatus{
-			Status:          databasev1alpha1.TypeStatusFailed,
+		status = &v1alpha1.ValkeyStatus{
+			Status:          v1alpha1.TypeStatusFailed,
 			LastReconcileAt: utils.Pointer(metav1.Now()),
 			Error:           err.Error(),
 		}
@@ -130,6 +130,6 @@ func (r *ValkeyReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 // SetupWithManager sets up the controller with the Manager.
 func (r *ValkeyReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&databasev1alpha1.Valkey{}).
+		For(&v1alpha1.Valkey{}).
 		Complete(r)
 }

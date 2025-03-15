@@ -67,8 +67,6 @@ func (r *FlowImpl) Run(ctx context.Context, input any) (any, []string, error) {
 	}
 
 	if len(item.Finalizers) == 0 { // save finalizers
-		logger.Info("finalizer was added to valkey")
-
 		err := r.valkeySvc.Create(ctx, &valkeysvc.CreateRequest{
 			CrdName:   item.Name,
 			Namespace: item.Namespace,

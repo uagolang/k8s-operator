@@ -12,7 +12,7 @@ It should work on local environment with `minikube` as a local k8s cluster.
 - Minikube
 - kubectl
 
-### Clone repo
+### Local environment
 
 Firstly, you need to clone this repo:
 
@@ -20,44 +20,38 @@ Firstly, you need to clone this repo:
 # firstly
 git clone https://github.com/uagolang/k8s-operator.git
 # then
+cd k8s-operator
 go mod tidy
 ```
 
-### Minikube
-
-You should be sure that your kubectl context is correct:
+Then start minikube, check it status and use its context:
 
 ```shell
-minikube start
+minikube start --nodes 2
 minikube status
 kubectl config use-context minikube
 ```
 
-### Add CRD to k8s cluster (minikube)
+After that you need to execute `docker login` and then build Docker image 
+and push it to the Docker Hub using command:
+
+```shell
+make docker-build docker-push
+```
+
+After that you need to generate all needed resources and deploy operator:
 
 ```shell
 make generate
 make manifests
-make install
-```
+make deploy
 
-```shell
-# result of make install
-~/apps/uagolang/k8s-operator git:[main]
-make install
-/Users/nesymno/apps/uagolang/k8s-operator/bin/controller-gen-v0.14.0 rbac:roleName=manager-role crd webhook paths="./..." output:crd:artifacts:config=config/crd/bases
-/Users/nesymno/apps/uagolang/k8s-operator/bin/kustomize-v5.3.0 build config/crd | kubectl apply -f -
-customresourcedefinition.apiextensions.k8s.io/valkeys.database.kuberly.io created
+# use `make undeploy` to undeploy operator
+# use `make uninstall` to uninstall CRDs
 ```
 
 ### Create new CRD using CLI tool
 
 ```shell
 go run cmd/cli/main.go valkey create --name=test --namespace=test --image=valkey/valkey --user=root --pass=root --replicas=1 --volume_enabled=true --cpu=200m --memory=512Mi --storage=512Mi
-```
-
-### Deploy operator to cluster
-
-```shell
-make deploy
 ```
